@@ -18,7 +18,9 @@ const predefinedResponses: Record<string, string> = {
   'suspicious': "Based on today's session, one student (Ananya Patel - CS2024008) shows scan timing that differs from typical patterns. The scan occurred slightly outside the expected window and the verification image quality was lower than usual. I recommend a brief check-in to confirm attendance.",
   'summarize': "Today's attendance summary:\n\n• Total students present: 4\n• Confirmed without issues: 3 (75%)\n• Flagged for review: 1 (25%)\n• Average check-in time: 2 minutes after class start\n• No off-site scan attempts detected\n\nOverall, attendance quality is strong for this session.",
   'unusual': "One notable observation: The flagged student's scan timing and image quality are inconsistent with their previous attendance patterns. However, this could be due to network issues or device problems rather than intentional proxy attempts. The system prioritizes explainability over accusation.",
-  'default': "I can help you understand attendance patterns, review flagged students, or provide session summaries. Try asking:\n\n• \"Who looks suspicious today?\"\n• \"Summarize today's attendance\"\n• \"Any unusual behavior?\"",
+  'below75': "Currently, 3 students are below the 75% attendance threshold this month:\n\n• Rohan Kapoor (CS2024012) — 68%\n• Sneha Gupta (CS2024019) — 72%\n• Arjun Mehta (CS2024025) — 65%\n\nI recommend reaching out to these students to understand any barriers they may be facing.",
+  'monthly': "This month's attendance overview:\n\n• Week 1: 92% (strong start)\n• Week 2: 88% (slight dip)\n• Week 3: 78% (noticeable decline)\n• Week 4: 71% (below threshold)\n\nThe trend shows a gradual decline, especially in the second half. Consider addressing potential causes such as upcoming exams or student fatigue.",
+  'default': "I can help you understand attendance patterns, review flagged students, or provide session summaries. Try asking:\n\n• \"Who looks suspicious today?\"\n• \"Summarize today's attendance\"\n• \"Who is below 75% this month?\"\n• \"Summarize this month's attendance\"",
 };
 
 const AIChat = ({ onClose }: AIChatProps) => {
@@ -45,6 +47,12 @@ const AIChat = ({ onClose }: AIChatProps) => {
     const lowerQuery = query.toLowerCase();
     if (lowerQuery.includes('suspicious') || lowerQuery.includes('flag')) {
       return predefinedResponses['suspicious'];
+    }
+    if (lowerQuery.includes('below 75') || lowerQuery.includes('at risk') || lowerQuery.includes('low attendance')) {
+      return predefinedResponses['below75'];
+    }
+    if (lowerQuery.includes('month') && (lowerQuery.includes('summarize') || lowerQuery.includes('summary') || lowerQuery.includes('overview'))) {
+      return predefinedResponses['monthly'];
     }
     if (lowerQuery.includes('summarize') || lowerQuery.includes('summary')) {
       return predefinedResponses['summarize'];
