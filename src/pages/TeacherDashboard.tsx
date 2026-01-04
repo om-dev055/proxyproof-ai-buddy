@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Play, Square, RefreshCw, Users, ArrowLeft, TrendingUp, AlertTriangle, Eye, MessageSquare } from 'lucide-react';
+import { Play, Square, RefreshCw, Users, ArrowLeft, AlertTriangle, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/contexts/AppContext';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
@@ -9,6 +9,8 @@ import AttendanceCard from '@/components/AttendanceCard';
 import StudentDetailModal from '@/components/StudentDetailModal';
 import InsightCards from '@/components/InsightCards';
 import AIChat from '@/components/AIChat';
+import MonthlyAttendanceChart from '@/components/MonthlyAttendanceChart';
+import AtRiskStudents from '@/components/AtRiskStudents';
 import { AttendanceRecord } from '@/types';
 
 const mockAttendance: AttendanceRecord[] = [
@@ -157,6 +159,12 @@ const TeacherDashboard = () => {
 
           {/* Right Column - Insights & Attendance */}
           <div className="lg:col-span-2 space-y-6">
+            {/* Monthly Attendance Analytics */}
+            <MonthlyAttendanceChart />
+            
+            {/* At Risk Students */}
+            <AtRiskStudents />
+            
             {/* AI Insights */}
             <InsightCards isActive={isClassActive} attendanceCount={attendanceList.length} />
 
