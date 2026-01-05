@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Camera, ArrowLeft, Scan, AlertCircle } from 'lucide-react';
+import { ArrowLeft, AlertCircle, Camera } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useAttendance } from '@/hooks/useSession';
+import { Html5Qrcode } from 'html5-qrcode';
 
 interface QRScannerProps {
   onSuccess: (qrToken: string) => void;
@@ -10,80 +10,114 @@ interface QRScannerProps {
 }
 
 const QRScanner = ({ onSuccess, onBack }: QRScannerProps) => {
-  const [scanning, setScanning] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { getActiveSession } = useAttendance();
+  const [isStarting, setIsStarting] = useState(true);
+  const scannerRef = useRef<Html5Qrcode | null>(null);
   const hasScanned = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Prevent multiple scans
-    if (hasScanned.current) return;
+    let mounted = true;
 
-    const scanQR = async () => {
-      // Simulate camera scanning delay
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+    const startScanner = async () => {
+      if (!containerRef.current || hasScanned.current) return;
 
-      // Fetch active session's QR token
-      const qrToken = await getActiveSession();
+      try {
+        const scanner = new Html5Qrcode('qr-reader');
+        scannerRef.current = scanner;
 
-      if (!qrToken) {
-        setError('No active class session found. Please wait for the teacher to start class.');
-        setScanning(false);
-        return;
+        await scanner.start(
+          { facingMode: 'environment' },
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+          },
+          (decodedText) => {
+            if (hasScanned.current) return;
+            hasScanned.current = true;
+            
+            // Stop scanner and call success
+            scanner.stop().then(() => {
+              if (mounted) {
+                onSuccess(decodedText);
+              }
+            }).catch(console.error);
+          },
+          () => {
+            // QR code not found - this is normal, keep scanning
+          }
+        );
+
+        if (mounted) {
+          setIsStarting(false);
+        }
+      } catch (err) {
+        if (mounted) {
+          setError('Unable to access camera. Please allow camera permissions and try again.');
+          setIsStarting(false);
+        }
       }
-
-      hasScanned.current = true;
-      setScanning(false);
-      
-      // Small delay before transitioning
-      setTimeout(() => onSuccess(qrToken), 500);
     };
 
-    scanQR();
-  }, [getActiveSession, onSuccess]);
+    startScanner();
+
+    return () => {
+      mounted = false;
+      if (scannerRef.current) {
+        scannerRef.current.stop().catch(() => {});
+      }
+    };
+  }, [onSuccess]);
+
+  const handleBack = () => {
+    if (scannerRef.current) {
+      scannerRef.current.stop().catch(() => {});
+    }
+    onBack();
+  };
 
   return (
     <div className="min-h-screen gradient-bg-hero p-4 flex flex-col">
       {/* Header */}
       <div className="flex items-center mb-6">
-        <Button variant="ghost" size="sm" onClick={onBack}>
+        <Button variant="ghost" size="sm" onClick={handleBack}>
           <ArrowLeft className="w-5 h-5 mr-2" />
           Back
         </Button>
       </div>
 
       <div className="flex-1 flex flex-col items-center justify-center max-w-md mx-auto w-full">
-        {/* Scanner Frame */}
+        {/* Scanner Container */}
         <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           className="relative w-full aspect-square max-w-xs mb-8"
         >
-          {/* Camera Preview Placeholder */}
-          <div className="absolute inset-0 bg-muted rounded-3xl overflow-hidden">
-            <div className="w-full h-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
-              <Camera className="w-16 h-16 text-muted-foreground/50" />
+          <div 
+            id="qr-reader" 
+            ref={containerRef}
+            className="w-full h-full rounded-3xl overflow-hidden bg-muted"
+          />
+
+          {/* Loading overlay */}
+          {isStarting && !error && (
+            <div className="absolute inset-0 bg-muted rounded-3xl flex items-center justify-center">
+              <div className="text-center">
+                <Camera className="w-12 h-12 text-muted-foreground/50 mx-auto mb-3 animate-pulse" />
+                <p className="text-sm text-muted-foreground">Starting camera...</p>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Scanning Frame */}
-          <div className="absolute inset-4">
-            {/* Corner Brackets */}
-            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg" />
-            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg" />
-            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg" />
-            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg" />
-
-            {/* Scanning Line */}
-            {scanning && !error && (
-              <motion.div
-                initial={{ top: '0%' }}
-                animate={{ top: '100%' }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                className="absolute left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent glow-primary"
-              />
-            )}
-          </div>
+          {/* Scanning Frame Overlay */}
+          {!error && !isStarting && (
+            <div className="absolute inset-4 pointer-events-none">
+              <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-primary rounded-tl-lg" />
+              <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-primary rounded-tr-lg" />
+              <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-primary rounded-bl-lg" />
+              <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg" />
+            </div>
+          )}
         </motion.div>
 
         {/* Status */}
@@ -97,22 +131,19 @@ const QRScanner = ({ onSuccess, onBack }: QRScannerProps) => {
             <div className="space-y-4">
               <div className="flex items-center justify-center gap-3 mb-3 text-destructive">
                 <AlertCircle className="w-5 h-5" />
-                <span className="font-semibold">{error}</span>
+                <span className="font-semibold text-sm">{error}</span>
               </div>
-              <Button onClick={onBack} variant="outline">
+              <Button onClick={handleBack} variant="outline">
                 Go Back
               </Button>
             </div>
           ) : (
             <>
-              <div className="flex items-center justify-center gap-3 mb-3">
-                <Scan className="w-5 h-5 text-primary animate-pulse" />
-                <span className="font-semibold text-foreground">
-                  {scanning ? 'Scanning for QR code...' : 'QR Code detected!'}
-                </span>
-              </div>
+              <p className="font-semibold text-foreground mb-2">
+                {isStarting ? 'Initializing camera...' : 'Scan the QR code'}
+              </p>
               <p className="text-sm text-muted-foreground">
-                Position the QR code within the frame
+                Point your camera at the teacher's QR code
               </p>
             </>
           )}
