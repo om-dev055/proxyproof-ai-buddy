@@ -1,24 +1,46 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Camera, ArrowLeft, Scan } from 'lucide-react';
+import { Camera, ArrowLeft, Scan, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAttendance } from '@/hooks/useSession';
 
 interface QRScannerProps {
-  onSuccess: () => void;
+  onSuccess: (qrToken: string) => void;
   onBack: () => void;
 }
 
 const QRScanner = ({ onSuccess, onBack }: QRScannerProps) => {
   const [scanning, setScanning] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const { getActiveSession } = useAttendance();
+  const hasScanned = useRef(false);
 
   useEffect(() => {
-    // Simulate QR scan after 3 seconds
-    const timer = setTimeout(() => {
+    // Prevent multiple scans
+    if (hasScanned.current) return;
+
+    const scanQR = async () => {
+      // Simulate camera scanning delay
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Fetch active session's QR token
+      const qrToken = await getActiveSession();
+
+      if (!qrToken) {
+        setError('No active class session found. Please wait for the teacher to start class.');
+        setScanning(false);
+        return;
+      }
+
+      hasScanned.current = true;
       setScanning(false);
-      setTimeout(onSuccess, 500);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [onSuccess]);
+      
+      // Small delay before transitioning
+      setTimeout(() => onSuccess(qrToken), 500);
+    };
+
+    scanQR();
+  }, [getActiveSession, onSuccess]);
 
   return (
     <div className="min-h-screen gradient-bg-hero p-4 flex flex-col">
@@ -53,7 +75,7 @@ const QRScanner = ({ onSuccess, onBack }: QRScannerProps) => {
             <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-primary rounded-br-lg" />
 
             {/* Scanning Line */}
-            {scanning && (
+            {scanning && !error && (
               <motion.div
                 initial={{ top: '0%' }}
                 animate={{ top: '100%' }}
@@ -71,15 +93,29 @@ const QRScanner = ({ onSuccess, onBack }: QRScannerProps) => {
           transition={{ delay: 0.3 }}
           className="text-center"
         >
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <Scan className="w-5 h-5 text-primary animate-pulse" />
-            <span className="font-semibold text-foreground">
-              {scanning ? 'Scanning for QR code...' : 'QR Code detected!'}
-            </span>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Position the QR code within the frame
-          </p>
+          {error ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-center gap-3 mb-3 text-destructive">
+                <AlertCircle className="w-5 h-5" />
+                <span className="font-semibold">{error}</span>
+              </div>
+              <Button onClick={onBack} variant="outline">
+                Go Back
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-center gap-3 mb-3">
+                <Scan className="w-5 h-5 text-primary animate-pulse" />
+                <span className="font-semibold text-foreground">
+                  {scanning ? 'Scanning for QR code...' : 'QR Code detected!'}
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Position the QR code within the frame
+              </p>
+            </>
+          )}
         </motion.div>
       </div>
     </div>

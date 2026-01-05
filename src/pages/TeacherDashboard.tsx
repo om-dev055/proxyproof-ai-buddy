@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Play, Square, RefreshCw, Users, ArrowLeft, AlertTriangle, MessageSquare } from 'lucide-react';
+import { Play, Square, RefreshCw, Users, ArrowLeft, AlertTriangle, MessageSquare, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/contexts/AppContext';
+import { useSession } from '@/hooks/useSession';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import AttendanceCard from '@/components/AttendanceCard';
 import StudentDetailModal from '@/components/StudentDetailModal';
@@ -13,61 +14,55 @@ import MonthlyAttendanceChart from '@/components/MonthlyAttendanceChart';
 import AtRiskStudents from '@/components/AtRiskStudents';
 import { AttendanceRecord } from '@/types';
 
-const mockAttendance: AttendanceRecord[] = [
-  { id: '1', studentId: 's1', studentName: 'Priya Sharma', rollNumber: 'CS2024001', department: 'Computer Science', timestamp: new Date(Date.now() - 120000), status: 'confirmed' },
-  { id: '2', studentId: 's2', studentName: 'Rahul Verma', rollNumber: 'CS2024015', department: 'Computer Science', timestamp: new Date(Date.now() - 90000), status: 'confirmed' },
-  { id: '3', studentId: 's3', studentName: 'Ananya Patel', rollNumber: 'CS2024008', department: 'Computer Science', timestamp: new Date(Date.now() - 60000), status: 'needs-review' },
-  { id: '4', studentId: 's4', studentName: 'Vikram Singh', rollNumber: 'CS2024022', department: 'Computer Science', timestamp: new Date(Date.now() - 30000), status: 'confirmed' },
-];
-
 const TeacherDashboard = () => {
   const navigate = useNavigate();
   const { setRole } = useApp();
-  const [isClassActive, setIsClassActive] = useState(false);
-  const [qrRefreshTimer, setQrRefreshTimer] = useState(45);
+  const {
+    activeSession,
+    attendanceList,
+    isLoading,
+    startClass,
+    endClass,
+    refreshQRToken,
+  } = useSession();
+
+  const [qrRefreshTimer, setQrRefreshTimer] = useState(3);
   const [selectedStudent, setSelectedStudent] = useState<AttendanceRecord | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
-  const [attendanceList, setAttendanceList] = useState<AttendanceRecord[]>([]);
+
+  const isClassActive = !!activeSession;
 
   const handleLogout = () => {
     setRole(null);
     navigate('/');
   };
 
-  const handleStartClass = () => {
-    setIsClassActive(true);
-    setAttendanceList([]);
+  const handleStartClass = async () => {
+    await startClass('Teacher');
+    setQrRefreshTimer(3);
   };
 
-  const handleEndClass = () => {
-    setIsClassActive(false);
-    setQrRefreshTimer(45);
+  const handleEndClass = async () => {
+    await endClass();
+    setQrRefreshTimer(3);
   };
 
-  // QR refresh timer
+  // QR refresh timer - refresh every 3 seconds
   useEffect(() => {
     if (!isClassActive) return;
 
-    const interval = setInterval(() => {
-      setQrRefreshTimer(prev => {
-        if (prev <= 1) return 45;
+    const interval = setInterval(async () => {
+      setQrRefreshTimer((prev) => {
+        if (prev <= 1) {
+          refreshQRToken();
+          return 3;
+        }
         return prev - 1;
       });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isClassActive]);
-
-  // Simulate incoming attendance
-  useEffect(() => {
-    if (!isClassActive) return;
-
-    const timeout = setTimeout(() => {
-      setAttendanceList(mockAttendance);
-    }, 2000);
-
-    return () => clearTimeout(timeout);
-  }, [isClassActive]);
+  }, [isClassActive, refreshQRToken]);
 
   return (
     <div className="min-h-screen gradient-bg-hero">
@@ -128,7 +123,7 @@ const TeacherDashboard = () => {
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                 >
-                  <QRCodeDisplay timer={qrRefreshTimer} />
+                  <QRCodeDisplay timer={qrRefreshTimer} qrToken={activeSession?.qr_token || ''} />
                 </motion.div>
               )}
             </AnimatePresence>

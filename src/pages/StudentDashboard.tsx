@@ -1,19 +1,23 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { QrCode, ClipboardList, User, ChevronRight, CheckCircle2, ArrowLeft } from 'lucide-react';
+import { QrCode, ClipboardList, User, ChevronRight, CheckCircle2, ArrowLeft, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useApp } from '@/contexts/AppContext';
+import { useAttendance } from '@/hooks/useSession';
 import QRScanner from '@/components/QRScanner';
 import SelfieCapture from '@/components/SelfieCapture';
 import AttendanceHistory from '@/components/AttendanceHistory';
 
-type ViewState = 'dashboard' | 'scanning' | 'selfie' | 'success' | 'history';
+type ViewState = 'dashboard' | 'scanning' | 'selfie' | 'success' | 'error' | 'history';
 
 const StudentDashboard = () => {
   const navigate = useNavigate();
   const { student, setRole, setStudent } = useApp();
+  const { validateAndMarkAttendance, isLoading } = useAttendance();
   const [view, setView] = useState<ViewState>('dashboard');
+  const [scannedToken, setScannedToken] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   const handleLogout = () => {
     setRole(null);
@@ -21,13 +25,34 @@ const StudentDashboard = () => {
     navigate('/');
   };
 
-  const handleQRSuccess = () => {
+  const handleQRSuccess = (qrToken: string) => {
+    setScannedToken(qrToken);
     setView('selfie');
   };
 
-  const handleSelfieSuccess = () => {
-    setView('success');
-    setTimeout(() => setView('dashboard'), 3000);
+  const handleSelfieSuccess = async () => {
+    if (!scannedToken || !student) {
+      setErrorMessage('Missing scan data. Please try again.');
+      setView('error');
+      return;
+    }
+
+    const result = await validateAndMarkAttendance(
+      scannedToken,
+      student.name,
+      student.rollNumber
+    );
+
+    if (result.success) {
+      setView('success');
+      setTimeout(() => {
+        setView('dashboard');
+        setScannedToken(null);
+      }, 3000);
+    } else {
+      setErrorMessage(result.message);
+      setView('error');
+    }
   };
 
   if (view === 'scanning') {
@@ -61,6 +86,37 @@ const StudentDashboard = () => {
           <p className="text-muted-foreground">
             You're all set for today's class
           </p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (view === 'error') {
+    return (
+      <div className="min-h-screen gradient-bg-hero flex items-center justify-center p-4">
+        <motion.div
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: 'spring', damping: 15 }}
+          className="text-center max-w-sm"
+        >
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: 'spring' }}
+            className="w-24 h-24 mx-auto mb-6 rounded-full bg-destructive/20 flex items-center justify-center"
+          >
+            <XCircle className="w-14 h-14 text-destructive" />
+          </motion.div>
+          <h1 className="font-display text-3xl font-bold text-foreground mb-2">
+            Attendance Failed
+          </h1>
+          <p className="text-muted-foreground mb-6">
+            {errorMessage}
+          </p>
+          <Button onClick={() => setView('dashboard')} variant="outline">
+            Try Again
+          </Button>
         </motion.div>
       </div>
     );
