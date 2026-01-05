@@ -5,11 +5,10 @@ import QRCode from 'react-qr-code';
 
 interface QRCodeDisplayProps {
   timer: number;
+  qrToken: string;
 }
 
-const QRCodeDisplay = forwardRef<HTMLDivElement, QRCodeDisplayProps>(({ timer }, ref) => {
-  const qrValue = `proxyproof-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-
+const QRCodeDisplay = forwardRef<HTMLDivElement, QRCodeDisplayProps>(({ timer, qrToken }, ref) => {
   return (
     <motion.div
       ref={ref}
@@ -28,7 +27,7 @@ const QRCodeDisplay = forwardRef<HTMLDivElement, QRCodeDisplayProps>(({ timer },
       {/* QR Code */}
       <div className="bg-foreground p-4 rounded-2xl mb-4">
         <QRCode
-          value={qrValue}
+          value={qrToken}
           size={200}
           className="w-full h-auto"
           level="M"
@@ -47,9 +46,14 @@ const QRCodeDisplay = forwardRef<HTMLDivElement, QRCodeDisplayProps>(({ timer },
         <motion.div
           className="h-full gradient-bg-primary"
           initial={{ width: '100%' }}
-          animate={{ width: `${(timer / 45) * 100}%` }}
+          animate={{ width: `${(timer / 3) * 100}%` }}
           transition={{ duration: 0.5 }}
         />
+      </div>
+
+      {/* Token Display */}
+      <div className="mt-3 text-center">
+        <span className="text-xs text-muted-foreground font-mono">{qrToken}</span>
       </div>
     </motion.div>
   );
