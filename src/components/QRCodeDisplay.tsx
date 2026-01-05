@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { RefreshCw, Clock } from 'lucide-react';
 import QRCode from 'react-qr-code';
@@ -6,11 +7,12 @@ interface QRCodeDisplayProps {
   timer: number;
 }
 
-const QRCodeDisplay = ({ timer }: QRCodeDisplayProps) => {
+const QRCodeDisplay = forwardRef<HTMLDivElement, QRCodeDisplayProps>(({ timer }, ref) => {
   const qrValue = `proxyproof-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
   return (
     <motion.div
+      ref={ref}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       className="card-elevated p-6"
@@ -51,6 +53,8 @@ const QRCodeDisplay = ({ timer }: QRCodeDisplayProps) => {
       </div>
     </motion.div>
   );
-};
+});
+
+QRCodeDisplay.displayName = 'QRCodeDisplay';
 
 export default QRCodeDisplay;
