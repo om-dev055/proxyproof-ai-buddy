@@ -1,3 +1,4 @@
+import { forwardRef } from 'react';
 import { motion } from 'framer-motion';
 import { User, Clock, CheckCircle2, AlertCircle, ChevronRight } from 'lucide-react';
 import { AttendanceRecord } from '@/types';
@@ -9,11 +10,12 @@ interface AttendanceCardProps {
   onClick: () => void;
 }
 
-const AttendanceCard = ({ record, index, onClick }: AttendanceCardProps) => {
+const AttendanceCard = forwardRef<HTMLButtonElement, AttendanceCardProps>(({ record, index, onClick }, ref) => {
   const isConfirmed = record.status === 'confirmed';
 
   return (
     <motion.button
+      ref={ref}
       initial={{ opacity: 0, x: -20 }}
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.1 }}
@@ -59,6 +61,8 @@ const AttendanceCard = ({ record, index, onClick }: AttendanceCardProps) => {
       <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
     </motion.button>
   );
-};
+});
+
+AttendanceCard.displayName = 'AttendanceCard';
 
 export default AttendanceCard;
